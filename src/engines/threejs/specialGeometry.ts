@@ -6,6 +6,68 @@ export interface SpecialModel {
   group: THREE.Group;
   update: (pattern: KPattern) => void;
 }
+/** Build Redi's 20 pieces from cubing.js's labeled, oriented sticker net. */
+export function createRediCube(svg: string): SpecialModel {
+  const group = new THREE.Group();
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(2.92, 2.92, 2.92), material(0x111111)));
+  const document = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  const normals: Record<string, THREE.Vector3> = {
+    '#FFFFFF': new THREE.Vector3(0, 1, 0),
+    '#FFFF00': new THREE.Vector3(0, -1, 0),
+    '#FF0000': new THREE.Vector3(1, 0, 0),
+    '#FF8000': new THREE.Vector3(-1, 0, 0),
+    '#FFA500': new THREE.Vector3(-1, 0, 0),
+    '#32CD32': new THREE.Vector3(0, 0, 1),
+    '#2266FF': new THREE.Vector3(0, 0, -1),
+  };
+  const colors: Record<string, string[][]> = { CORNERS: [], EDGES: [] };
+  for (const node of document.querySelectorAll('[id]')) {
+    const match = /^(CORNERS|EDGES)-l(\d+)-o(\d+)$/.exec(node.id);
+    if (!match) continue;
+    const color = /fill:\s*(#[a-f\d]{6})/i
+      .exec(node.getAttribute('style') ?? '')?.[1]
+      .toUpperCase();
+    if (!color || !normals[color]) throw Error('Unsupported Redi sticker color.');
+    (colors[match[1]][Number(match[2])] ??= [])[Number(match[3])] = color;
+  }
+  const stickers: {
+    orbit: string;
+    location: number;
+    orientation: number;
+    mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>;
+  }[] = [];
+  for (const [orbit, pieces] of Object.entries(colors)) {
+    pieces.forEach((piece, location) => {
+      const center = piece.reduce((v, color) => v.add(normals[color]), new THREE.Vector3());
+      const plastic = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.96, 0.96), material(0x111111));
+      plastic.position.copy(center);
+      group.add(plastic);
+      piece.forEach((color, orientation) => {
+        const normal = normals[color];
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.85, 0.85),
+          material(Number(color.replace('#', '0x'))),
+        );
+        mesh.position.copy(center).addScaledVector(normal, 0.485);
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+        group.add(mesh);
+        stickers.push({ orbit, location, orientation, mesh });
+      });
+    });
+  }
+  return {
+    group,
+    update: (pattern) => {
+      for (const sticker of stickers) {
+        const orbit = pattern.patternData[sticker.orbit];
+        const piece = colors[sticker.orbit][orbit.pieces[sticker.location]];
+        const index =
+          (sticker.orientation - orbit.orientation[sticker.location] + piece.length) % piece.length;
+        sticker.mesh.material.color.set(piece[index]);
+      }
+    },
+  };
+}
 export function createClock(): SpecialModel {
   const group = new THREE.Group();
   const frame = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 0.36), material(0x216a9f));

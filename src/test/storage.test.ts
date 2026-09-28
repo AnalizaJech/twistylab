@@ -3,6 +3,8 @@ import { db, TwistyDatabase } from '../core/storage/database';
 import { SolveRepository, SessionRepository } from '../core/storage/repositories';
 import { exportBackup, importBackup, validateBackup } from '../core/storage/backup';
 import type { Solve } from '../types';
+import { useSettingsStore, defaultSettings } from '../stores';
+import { SettingsRepository } from '../core/storage/repositories';
 const solve: Solve = {
   id: 'test-solve',
   sessionId: 'test-session',
@@ -17,6 +19,18 @@ afterEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()));
 });
 describe('local persistence', () => {
+  it('migrates old controls once, preserves custom mappings and subsequent deletions', async () => {
+    await db.settings.put({ id: 'main', value: { ...defaultSettings, controlsVersion: 1 } });
+    await SettingsRepository.saveBindings({ r: 'F' });
+    await useSettingsStore.getState().hydrate();
+    expect(useSettingsStore.getState().bindings.r).toBe('F');
+    expect(useSettingsStore.getState().bindings['w+r']).toBe('Rw');
+    await useSettingsStore.getState().setBindings({ r: 'F' });
+    await useSettingsStore.getState().update({ locale: 'en' });
+    await useSettingsStore.getState().hydrate();
+    expect(useSettingsStore.getState().bindings).toEqual({ r: 'F' });
+    expect(useSettingsStore.getState().settings.locale).toBe('en');
+  });
   it('persists sessions and solves across database instances', async () => {
     await SessionRepository.save({ id: 'test-session', name: 'Training', createdAt: 1 });
     await SolveRepository.save(solve);

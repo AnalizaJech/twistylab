@@ -3,7 +3,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Alg, Move } from 'cubing/alg';
 import { puzzles } from 'cubing/puzzles';
 import type { KPuzzle, KPattern } from 'cubing/kpuzzle';
-import { createClock, createSquare1, disposeGroup, type SpecialModel } from './specialGeometry';
+import {
+  createClock,
+  createSquare1,
+  createRediCube,
+  disposeGroup,
+  type SpecialModel,
+} from './specialGeometry';
 export class ThreeJsPuzzleRenderer {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
@@ -38,7 +44,12 @@ export class ThreeJsPuzzleRenderer {
     const light = new THREE.DirectionalLight(0xffffff, 3);
     light.position.set(4, 6, 8);
     this.scene.add(light);
-    this.model = puzzleId === 'clock' ? createClock() : createSquare1();
+    this.model =
+      puzzleId === 'clock'
+        ? createClock()
+        : puzzleId === 'redi_cube'
+          ? { group: new THREE.Group(), update: () => {} }
+          : createSquare1();
     this.scene.add(this.model.group);
     this.observer = new ResizeObserver(() => {
       this.renderer.setSize(host.clientWidth, host.clientHeight);
@@ -50,6 +61,13 @@ export class ThreeJsPuzzleRenderer {
   }
   async load() {
     this.kpuzzle = await puzzles[this.puzzleId].kpuzzle();
+    if (this.puzzleId === 'redi_cube') {
+      const svg = await puzzles[this.puzzleId].svg();
+      if (this.cancelled) return;
+      this.scene.remove(this.model.group);
+      this.model = createRediCube(svg);
+      this.scene.add(this.model.group);
+    }
     if (this.cancelled) return;
     this.pattern = this.kpuzzle.defaultPattern();
     this.model.update(this.pattern);

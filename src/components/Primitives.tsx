@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n';
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 export function Modal({
@@ -9,6 +10,7 @@ export function Modal({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   useEffect(() => {
     const previous = document.activeElement;
     const overflow = document.body.style.overflow;
@@ -52,7 +54,7 @@ export function Modal({
       >
         <header>
           <h2>{title}</h2>
-          <button className="icon-button" aria-label="Close" onClick={onClose}>
+          <button className="icon-button" aria-label={t('Close')} onClick={onClose}>
             <X size={20} />
           </button>
         </header>

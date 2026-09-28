@@ -1,3 +1,4 @@
+import { useI18n } from '../../i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Alg } from 'cubing/alg';
 import { Undo2, Redo2, RotateCcw, Shuffle, Check, Play, Square } from 'lucide-react';
@@ -20,9 +21,15 @@ const initial: PuzzleSnapshot = {
   revision: 0,
 };
 export default function PlaygroundPage() {
+  const { t } = useI18n();
   const { puzzleId, eventId } = usePuzzleStore();
   const { bindings } = useSettingsStore();
   const { sessionId, save } = useSessionStore();
+  const wideHeld = useRef(false);
+  const [showAlgorithm, setShowAlgorithm] = useState(false);
+  const [turn, setTurn] = useState('normal');
+  const [showGuide, setShowGuide] = useState(false);
+  const [moveGroup, setMoveGroup] = useState('Faces');
   const controller = useRef(new InteractivePuzzleController());
   const [state, setState] = useState(initial);
   const [error, setError] = useState('');
@@ -103,27 +110,46 @@ export default function PlaygroundPage() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (isTyping(e.target) || busy) return;
-      const move = bindings[keyChord(e)];
+      if (e.key.toLowerCase() === 'w' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        wideHeld.current = true;
+        return;
+      }
+      const move = bindings[`${wideHeld.current ? 'w+' : ''}${keyChord(e)}`];
       if (move) {
         e.preventDefault();
         execute(move);
       }
     }
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'w') wideHeld.current = false;
+    };
+    const onBlur = () => {
+      wideHeld.current = false;
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onUp);
+      window.removeEventListener('blur', onBlur);
+    };
   }, [bindings, busy, puzzleId, sessionId, eventId]);
   async function scramble() {
     setBusy(true);
     setError('');
     setResult(null);
     setElapsed(0);
+    const activeController = controller.current;
     try {
       const alg = await generateScramble(eventId);
-      setState(controller.current.scramble(alg));
+      if (controller.current !== activeController) return;
+      setState(activeController.scramble(alg));
     } catch (e) {
-      setError(String(e));
+      if (controller.current === activeController) setError(String(e));
     } finally {
-      setBusy(false);
+      if (controller.current === activeController) setBusy(false);
     }
   }
   function reset() {
@@ -140,24 +166,26 @@ export default function PlaygroundPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">EXPLORE. LEARN. REPEAT.</span>
+          <span className="eyebrow">{t('EXPLORE. LEARN. REPEAT.')}</span>
           <h1>
-            Your puzzle playground<span>.</span>
+            {t('Your puzzle playground')}
+            <span>.</span>
           </h1>
         </div>
         <div className="segmented">
           {['Free play', 'Virtual solve', 'Algorithm'].map((m) => (
             <button
-              key={m}
+              key={t(m)}
               disabled={running}
               className={mode === m ? 'active' : ''}
+              aria-pressed={mode === m}
               onClick={() => {
                 setMode(m);
                 setResult(null);
                 setElapsed(0);
               }}
             >
-              {m}
+              {t(m)}
             </button>
           ))}
         </div>
@@ -176,21 +204,28 @@ export default function PlaygroundPage() {
           <div className="stage-status">
             <span className={state.solved ? 'solved' : ''}>
               {state.solved ? <Check size={16} /> : <span className="status-dot" />}
-              {state.solved ? 'Solved' : 'In progress'}
+              {state.solved ? t('Solved') : t('In progress')}
             </span>
-            <span>{state.history.length} moves</span>
+            <span>
+              {state.history.length} {t(state.history.length === 1 ? 'move' : 'moves')}
+            </span>
             {mode === 'Virtual solve' && <strong>{formatTime(elapsed, 3)}</strong>}
           </div>
         </section>
-        <aside className="playground-controls">
+        <aside
+          className="playground-controls"
+          data-editor={showAlgorithm || mode === 'Algorithm' ? 'open' : 'closed'}
+        >
           <div className="section-heading">
-            <h2>{mode}</h2>
+            <h2>{t(mode)}</h2>
             <span>{puzzle.shortName}</span>
           </div>
           {mode === 'Virtual solve' && (
             <div className="virtual-controls">
               <p>
-                Generate a scramble, start, then solve. The clock stops when your puzzle is solved.
+                {t(
+                  'Generate a scramble, start, then solve. The clock stops when your puzzle is solved.',
+                )}
               </p>
               <button
                 className="primary"
@@ -204,7 +239,7 @@ export default function PlaygroundPage() {
                 }}
               >
                 <Play size={16} />
-                Start virtual solve
+                {t('Start virtual solve')}
               </button>
               {running && (
                 <button
@@ -214,21 +249,31 @@ export default function PlaygroundPage() {
                   }}
                 >
                   <Square size={15} />
-                  Cancel attempt
+                  {t('Cancel attempt')}
                 </button>
               )}
               {result && (
                 <div className="virtual-result">
                   <Check size={18} />
-                  <strong>Solved in {formatTime(result.time, 3)}</strong>
+                  <strong>
+                    {t('Solved in')} {formatTime(result.time, 3)}
+                  </strong>
                   <span>
-                    {result.moves} moves · {(result.moves / (result.time / 1000)).toFixed(2)} TPS ·
-                    Saved
+                    {result.moves} {t('moves ·')}
+                    {(result.moves / (result.time / 1000)).toFixed(2)}
+                    {t('TPS · Saved')}
                   </span>
                 </div>
               )}
             </div>
           )}
+          <button
+            className="text-button algorithm-toggle"
+            aria-expanded={showAlgorithm || mode === 'Algorithm'}
+            onClick={() => setShowAlgorithm(!showAlgorithm)}
+          >
+            {t(showAlgorithm ? 'Hide algorithm' : 'Edit algorithm')}
+          </button>
           <fieldset disabled={busy || running}>
             <AlgorithmInput
               value={algorithm}
@@ -244,40 +289,105 @@ export default function PlaygroundPage() {
                 disabled={!state.history.length}
               >
                 <Undo2 size={15} />
-                Undo
+                {t('Undo')}
               </button>
               <button onClick={() => finish(controller.current.redo())} disabled={!state.canRedo}>
                 <Redo2 size={15} />
-                Redo
+                {t('Redo')}
               </button>
             </div>
           </fieldset>
-          <div className="move-pad" aria-label="Puzzle moves">
-            {puzzle.moves.map((m) => (
-              <button
-                key={m}
-                disabled={busy}
-                onClick={() => execute(m)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  execute(new Alg(m).invert().toString());
-                }}
-              >
-                {m}
-              </button>
-            ))}
+          {puzzle.moves.some((m) => m.endsWith('w')) && (
+            <div className="segmented move-tabs">
+              {['Faces', 'Wide', 'Rotations'].map((group) => (
+                <button
+                  key={t(group)}
+                  className={moveGroup === group ? 'active' : ''}
+                  aria-pressed={moveGroup === group}
+                  onClick={() => setMoveGroup(group)}
+                >
+                  {t(group)}
+                </button>
+              ))}
+            </div>
+          )}
+          {!['clock', 'square1'].includes(puzzle.id) && (
+            <div className="turn-toolbar">
+              <span>{t('Turn')}</span>
+              <div className="segmented turn-modifiers">
+                {[
+                  ['normal', '1', 'Quarter turn'],
+                  ['inverse', '′', 'Inverse turn'],
+                  ['double', '2', 'Double turn'],
+                ].map(([value, symbol, label]) => (
+                  <button
+                    key={value}
+                    aria-label={t(label)}
+                    aria-pressed={turn === value}
+                    className={turn === value ? 'active' : ''}
+                    onClick={() => setTurn(value)}
+                  >
+                    {symbol}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="move-pad" aria-label={t('Puzzle moves')}>
+            {puzzle.moves
+              .filter(
+                (m) =>
+                  !puzzle.moves.some((n) => n.endsWith('w')) ||
+                  (moveGroup === 'Wide'
+                    ? m.endsWith('w')
+                    : moveGroup === 'Rotations'
+                      ? ['x', 'y', 'z', 'M', 'E', 'S'].includes(m)
+                      : !m.endsWith('w') && !['x', 'y', 'z', 'M', 'E', 'S'].includes(m)),
+              )
+              .map((m) => (
+                <button
+                  key={t(m)}
+                  disabled={busy}
+                  onClick={() =>
+                    execute(
+                      ['clock', 'square1'].includes(puzzle.id) || turn === 'normal'
+                        ? m
+                        : turn === 'inverse'
+                          ? new Alg(m).invert().toString()
+                          : `${m}2`,
+                    )
+                  }
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    execute(new Alg(m).invert().toString());
+                  }}
+                >
+                  {t(m)}
+                </button>
+              ))}
           </div>
           {!puzzle.moves.length && (
             <p className="muted">
-              Use Clock notation in the algorithm input. Drag to orbit the model.
+              {t('Use Clock notation in the algorithm input. Drag to orbit the model.')}
             </p>
           )}
-          <p className="control-hint">
-            {puzzle.renderer === 'cubing' ? 'Face click: turn' : 'Use notation or move controls'} ·{' '}
-            {puzzle.renderer === 'cubing' ? 'Right click: inverse' : 'Drag to orbit'} · Keyboard: R,
-            U, F…
+          <button
+            className="text-button guide-toggle"
+            aria-expanded={showGuide}
+            onClick={() => setShowGuide(!showGuide)}
+          >
+            {t(showGuide ? 'Hide guide' : 'Keyboard guide')}
+          </button>
+          <p className={`control-hint ${showGuide ? 'expanded' : ''}`}>
+            {puzzle.renderer === 'cubing'
+              ? t('Face click: turn')
+              : t('Use notation or move controls')}{' '}
+            · {puzzle.renderer === 'cubing' ? t('Right click: inverse') : t('Drag to orbit')}{' '}
+            {t('· Keyboard: R, U, F…')}
             <br />
-            Shift + key: inverse · Alt + key: double turn
+            {t('Shift + key: inverse · Alt + key: double turn')}
+            <br />
+            {t('Hold W + face key: wide turn (Shift: inverse · Alt: double)')}
           </p>
           <MoveHistory
             moves={state.history}
@@ -296,16 +406,16 @@ export default function PlaygroundPage() {
           <div className="button-row">
             <button disabled={busy || running} onClick={() => void scramble()}>
               <Shuffle size={15} />
-              Scramble
+              {t('Scramble')}
             </button>
             <button disabled={busy} onClick={reset}>
               <RotateCcw size={15} />
-              Reset
+              {t('Reset')}
             </button>
           </div>
           {error && (
             <p className="error" role="alert">
-              {error}
+              {t(error)}
             </p>
           )}
         </aside>

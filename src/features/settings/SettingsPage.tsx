@@ -1,8 +1,12 @@
+import { NumberStepper } from '../../components/NumberStepper';
+import { useI18n } from '../../i18n';
+import { Select } from '../../components/Select';
+import { useConfirm } from '../../components/Confirmation';
 import { useRef, useState } from 'react';
 import { Download, Upload, Trash2 } from 'lucide-react';
 import { Alg } from 'cubing/alg';
 import { useSettingsStore, useSessionStore, usePuzzleStore } from '../../stores';
-import { defaultBindings } from '../../core/controls/keyboard';
+import { defaultBindings, normalizeChord } from '../../core/controls/keyboard';
 import {
   download,
   exportBackup,
@@ -12,17 +16,20 @@ import {
 } from '../../core/storage/backup';
 import { deleteData } from '../../core/storage/repositories';
 export default function SettingsPage() {
+  const { t } = useI18n();
+  const confirm = useConfirm();
   const { settings, update, hydrate } = useSettingsStore();
   const { sessionId, solves } = useSessionStore();
   const { puzzleId } = usePuzzleStore();
   const file = useRef<HTMLInputElement>(null);
+  const [section, setSection] = useState('General');
   const [message, setMessage] = useState('');
   const [working, setWorking] = useState(false);
   async function remove(scope: 'session' | 'puzzle' | 'all') {
     if (
-      !confirm(
+      !(await confirm(
         `Permanently delete ${scope === 'all' ? 'all TwistyLab data' : scope === 'session' ? 'the current session and its solves' : 'all solves for this puzzle'}? Export a backup first.`,
-      )
+      ))
     )
       return;
     setWorking(true);
@@ -41,82 +48,120 @@ export default function SettingsPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">MAKE IT YOURS</span>
+          <span className="eyebrow">{t('MAKE IT YOURS')}</span>
           <h1>
-            Settings<span>.</span>
+            {t('Settings')}
+            <span>.</span>
           </h1>
         </div>
       </div>
-      <div className="settings-layout">
-        <section>
-          <h2>Workspace</h2>
+      <div className="segmented settings-tabs">
+        {['General', 'Controls', 'Data'].map((tab) => (
+          <button
+            key={tab}
+            className={section === tab ? 'active' : ''}
+            aria-pressed={section === tab}
+            onClick={() => setSection(tab)}
+          >
+            {t(tab)}
+          </button>
+        ))}
+      </div>
+      <div className="settings-layout" data-section={section}>
+        <section hidden={section !== 'General'}>
+          <h2>{t('Workspace')}</h2>
           <label className="setting-row">
             <span>
-              Appearance<small>Choose the look of your workspace.</small>
+              {t('Language')}
+              <small>{t('Choose your interface language.')}</small>
             </span>
-            <select
+            <Select
+              label={t('Language')}
+              value={settings.locale}
+              onValueChange={(v) => void update({ locale: v as 'es' | 'en' })}
+              options={[
+                { value: 'es', label: 'Español' },
+                { value: 'en', label: 'English' },
+              ]}
+            />
+          </label>
+          <label className="setting-row">
+            <span>
+              {t('Appearance')}
+              <small>{t('Choose the look of your workspace.')}</small>
+            </span>
+            <Select
+              label={t('Appearance')}
               value={settings.theme}
-              onChange={(e) => void update({ theme: e.target.value as typeof settings.theme })}
-            >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="system">System</option>
-            </select>
-          </label>
-          <label className="setting-row">
-            <span>
-              Inspection<small>15 seconds · +2 after 15s · DNF after 17s</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={settings.inspection}
-              onChange={(e) => void update({ inspection: e.target.checked })}
+              onValueChange={(v) => void update({ theme: v as typeof settings.theme })}
+              options={['dark', 'light', 'system'].map((v) => ({
+                value: v,
+                label: v[0].toUpperCase() + v.slice(1),
+              }))}
             />
           </label>
           <label className="setting-row">
-            <span>Timer precision</span>
-            <select
-              value={settings.precision}
-              onChange={(e) => void update({ precision: Number(e.target.value) as 2 | 3 })}
+            <span>
+              {t('Inspection')}
+              <small>{t('15 seconds · +2 after 15s · DNF after 17s')}</small>
+            </span>
+            <button
+              type="button"
+              className="switch"
+              role="switch"
+              aria-label={t('Inspection')}
+              aria-checked={settings.inspection}
+              onClick={() => void update({ inspection: !settings.inspection })}
             >
-              <option value="2">0.00</option>
-              <option value="3">0.000</option>
-            </select>
+              <span />
+            </button>
+          </label>
+          <label className="setting-row">
+            <span>{t('Timer precision')}</span>
+            <Select
+              label={t('Timer precision')}
+              value={String(settings.precision)}
+              onValueChange={(v) => void update({ precision: Number(v) as 2 | 3 })}
+              options={[
+                { value: '2', label: '0.00' },
+                { value: '3', label: '0.000' },
+              ]}
+            />
           </label>
           <label className="setting-row">
             <span>
-              Hold to ready<small>Hold duration in milliseconds</small>
+              {t('Hold to ready')}
+              <small>{t('Hold duration in milliseconds')}</small>
             </span>
-            <input
-              type="number"
-              min="100"
-              max="3000"
-              step="50"
+            <NumberStepper
+              label="Hold duration"
               value={settings.holdMs}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                if (v >= 100 && v <= 3000) void update({ holdMs: v });
-              }}
+              min={100}
+              max={3000}
+              step={50}
+              onChange={(v) => void update({ holdMs: v })}
             />
           </label>
           <label className="setting-row">
-            <span>Move animation</span>
-            <select
+            <span>{t('Move animation')}</span>
+            <Select
+              label={t('Move animation')}
               value={settings.speed}
-              onChange={(e) => void update({ speed: e.target.value as typeof settings.speed })}
-            >
-              {['slow', 'normal', 'fast', 'instant'].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
+              onValueChange={(v) => void update({ speed: v as typeof settings.speed })}
+              options={['slow', 'normal', 'fast', 'instant'].map((v) => ({
+                value: v,
+                label: v[0].toUpperCase() + v.slice(1),
+              }))}
+            />
           </label>
-          <KeyboardMapper />
         </section>
-        <section className="data-settings">
-          <h2>Your data</h2>
+        {section === 'Controls' && <KeyboardMapper />}
+        <section hidden={section !== 'Data'} className="data-settings">
+          <h2>{t('Your data')}</h2>
           <p>
-            Everything stays in this browser. Save a backup to carry your sessions to another
-            device.
+            {t(
+              'Everything stays in this browser. Save a backup to carry your sessions to another device.',
+            )}
           </p>
           <div className="button-stack">
             <button
@@ -125,15 +170,15 @@ export default function SettingsPage() {
               }
             >
               <Download size={16} />
-              Export JSON backup
+              {t('Export JSON backup')}
             </button>
             <button onClick={() => exportCSV(solves)}>
               <Download size={16} />
-              Export all solves as CSV
+              {t('Export all solves as CSV')}
             </button>
             <button disabled={working} onClick={() => file.current?.click()}>
               <Upload size={16} />
-              Import JSON backup
+              {t('Import JSON backup')}
             </button>
             <input
               type="file"
@@ -149,8 +194,11 @@ export default function SettingsPage() {
                   const data: unknown = JSON.parse(await f.text());
                   const b = validateBackup(data);
                   if (
-                    confirm(
-                      `Import ${b.solves.length} solves and ${b.sessions.length} sessions? Records with matching IDs and saved settings will be replaced; other records will be kept.`,
+                    await confirm(
+                      t(
+                        'Import {solves} solves and {sessions} sessions? Records with matching IDs and saved settings will be replaced; other records will be kept.',
+                        { solves: b.solves.length, sessions: b.sessions.length },
+                      ),
                     )
                   ) {
                     await importBackup(b);
@@ -168,24 +216,25 @@ export default function SettingsPage() {
             />
           </div>
           <div className="danger-zone">
-            <h3>Delete data</h3>
+            <h3>{t('Delete data')}</h3>
             <button disabled={working} onClick={() => void remove('session')}>
               <Trash2 size={15} />
-              Delete current session
+              {t('Delete current session')}
             </button>
             <button disabled={working} onClick={() => void remove('puzzle')}>
               <Trash2 size={15} />
-              Delete puzzle history
+              {t('Delete puzzle history')}
             </button>
             <button disabled={working} className="danger" onClick={() => void remove('all')}>
               <Trash2 size={15} />
-              Delete all data
+              {t('Delete all data')}
             </button>
           </div>
-          <p role="status">{message}</p>
+          <p role="status">{t(message)}</p>
           <p className="muted">
-            Offline ready after the first production load. Scrambler and puzzle modules are included
-            in the local cache.
+            {t(
+              'Offline ready after the first production load. Scrambler and puzzle modules are included in the local cache.',
+            )}
           </p>
         </section>
       </div>
@@ -193,14 +242,19 @@ export default function SettingsPage() {
   );
 }
 export function KeyboardMapper() {
+  const { t } = useI18n();
   const { bindings, setBindings } = useSettingsStore();
   const [key, setKey] = useState('');
   const [move, setMove] = useState('');
   const [error, setError] = useState('');
   return (
     <section className="keyboard-mapper">
-      <h2>Controls</h2>
-      <p className="muted">Customize Playground keys. Use chords such as r, Shift+r or Alt+r.</p>
+      <h2>{t('Controls')}</h2>
+      <p className="muted">
+        {t(
+          'Customize Playground keys. Use r, Shift+r or Alt+r. Hold W with a face key for wide moves. Assign w+r, w+Shift+r or w+Alt+r.',
+        )}
+      </p>
       <form
         className="mapping-form"
         onSubmit={async (e) => {
@@ -208,18 +262,7 @@ export function KeyboardMapper() {
           try {
             const parsed = new Alg(move);
             if (!parsed.toString().trim()) throw Error('Enter a move.');
-            const parts = key.trim().split('+');
-            const normalized = [
-              ...parts
-                .slice(0, -1)
-                .map(
-                  (p) =>
-                    ({ shift: 'Shift', alt: 'Alt', ctrl: 'Ctrl', meta: 'Meta' })[p.toLowerCase()] ??
-                    p,
-                ),
-              parts.at(-1)?.toLowerCase(),
-            ].join('+');
-            if (!normalized || normalized === ' ') throw Error('Enter a key.');
+            const normalized = normalizeChord(key);
             await setBindings({ ...bindings, [normalized]: parsed.toString() });
             setKey('');
             setMove('');
@@ -230,19 +273,24 @@ export function KeyboardMapper() {
         }}
       >
         <label>
-          Key
+          {t('Key')}
           <input
-            placeholder="Shift+r"
+            placeholder={t('Shift+r')}
             required
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
         </label>
         <label>
-          Move
-          <input placeholder="R'" required value={move} onChange={(e) => setMove(e.target.value)} />
+          {t('Move')}
+          <input
+            placeholder={t("R'")}
+            required
+            value={move}
+            onChange={(e) => setMove(e.target.value)}
+          />
         </label>
-        <button type="submit">Assign</button>
+        <button type="submit">{t('Assign')}</button>
       </form>
       <p className="error" role="alert">
         {error}
@@ -254,7 +302,7 @@ export function KeyboardMapper() {
             <span>{m}</span>
             <button
               className="text-button"
-              aria-label={`Remove binding ${k}`}
+              aria-label={`${t('Remove binding')} ${k}`}
               onClick={() => {
                 const next = { ...bindings };
                 delete next[k];
@@ -266,7 +314,9 @@ export function KeyboardMapper() {
           </div>
         ))}
       </div>
-      <button onClick={() => void setBindings(defaultBindings)}>Restore default controls</button>
+      <button onClick={() => void setBindings(defaultBindings)}>
+        {t('Restore default controls')}
+      </button>
     </section>
   );
 }

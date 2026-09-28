@@ -33,6 +33,8 @@ export const usePuzzleStore = create(
   ),
 );
 export const defaultSettings: Settings = {
+  locale: 'es',
+  controlsVersion: 2,
   theme: 'dark',
   inspection: false,
   precision: 2,
@@ -59,10 +61,26 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       SettingsRepository.favorites(),
       SettingsRepository.bindings(),
     ]);
+    if (bindings && settings?.controlsVersion !== 2) {
+      await SettingsRepository.saveBindings({
+        ...Object.fromEntries(Object.entries(defaultBindings).filter(([k]) => k.startsWith('w+'))),
+        ...bindings,
+      });
+      await SettingsRepository.save({ ...defaultSettings, ...settings, controlsVersion: 2 });
+    }
     set({
-      settings: settings ?? defaultSettings,
+      settings: { ...defaultSettings, ...settings, controlsVersion: 2 },
       favorites: favorites ?? ['3x3x3', 'pyraminx', 'megaminx'],
-      bindings: bindings ?? defaultBindings,
+      bindings: bindings
+        ? settings?.controlsVersion === 2
+          ? bindings
+          : {
+              ...Object.fromEntries(
+                Object.entries(defaultBindings).filter(([k]) => k.startsWith('w+')),
+              ),
+              ...bindings,
+            }
+        : defaultBindings,
     });
   },
   update: async (p) => {

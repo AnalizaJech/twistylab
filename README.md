@@ -23,17 +23,18 @@ node scripts/verify-puzzles.mjs
 
 ## Funcionalidad
 
-- 2×2 hasta 7×7, Pyraminx, Megaminx, Skewb, Square-1, Clock y FTO.
+- 16 puzzles: 2×2 hasta 7×7, Pyraminx, Megaminx, Skewb, Square-1, Clock, FTO, Kilominx, Redi Cube, Master Pyraminx y Baby FTO. Todos tienen modelo lógico, representación 3D y scrambles reales.
 - Selección por búsqueda, categorías, favoritos y recientes. El puzzle, evento y sesión permanecen seleccionados entre módulos y recargas.
 - Cronómetro determinista con `performance.now()`, refresco RAF, hold configurable, inspección y penalizaciones +2/DNF; precisión de dos o tres decimales.
 - Scrambles de `cubing/scramble`, sin generadores aleatorios caseros. La generación costosa usa los workers internos de cubing.js.
 - Vista 3D con órbita, zoom, presets de cámara, fullscreen y reproducción de scrambles paso a paso.
 - Playground: notación validada por `Alg` y `KPuzzle`, movimiento animado, historial, Undo/Redo, copiar y limpiar historial conservando la posición, reset y scramble.
 - Resolución virtual: genera un scramble, pulsa Start, resuelve mediante teclado, controles de movimientos o clics de cara cuando están disponibles. La detección de solved detiene y guarda el solve, con movimientos y TPS.
-- Teclas configurables. Por defecto R/U/F/L/D/B, Shift para inverso, Alt para doble; M/E/S y x/y/z cuando el puzzle admite la notación. Los movimientos wide se pueden introducir como algoritmos.
+- Teclas configurables. Por defecto R/U/F/L/D/B, Shift para inverso, Alt para doble; M/E/S y x/y/z cuando el puzzle admite la notación. Los seis giros wide Rw/Lw/Uw/Dw/Fw/Bw admiten W + tecla de cara, W + Shift + tecla para inverso y W + Alt + tecla para doble. El panel permite elegir giro normal, inverso o doble también en pantallas táctiles.
 - Sesiones independientes; historial con penalizaciones, notas, borrado confirmado y replay del scramble.
 - Mo3; Ao5/Ao12/Ao25/Ao50/Ao100; mejores medias, PB por evento y sesión; gráficas de tiempos y medias móviles. Mejores medias calculadas en un worker separado.
 - Persistencia Dexie/IndexedDB; exportación CSV y backup JSON de sesiones, solves, settings, favoritos y keybindings. Importación validada y transaccional, con confirmación explícita antes de reemplazar IDs coincidentes o preferencias.
+- Interfaz en español e inglés con cambio desde la cabecera o Ajustes; preferencia persistente. Controles y confirmaciones personalizados, pestañas coherentes, filtros desplegables, textareas de tamaño fijo con scroll interno y ajustes separados en General/Controles/Datos.
 - Modo dark/light/system, adaptación móvil, navegación accesible, foco visible y reducción de movimiento.
 - PWA: producción precachea las rutas, assets, motores, módulos de puzzles y scramblers. Después de completar la primera instalación de caché, funciona sin conexión. No requiere fuentes ni CDN remotos.
 
@@ -45,7 +46,7 @@ Publica **el contenido de esta carpeta como raíz del repositorio**. El workflow
 2. En **Settings → Pages → Build and deployment → Source**, selecciona **GitHub Actions**.
 3. Ejecuta el workflow o haz push a `main`.
 
-`base: './'` permite cargar assets bajo `https://USERNAME.github.io/REPOSITORY/` sin conocer el nombre del repositorio. HashRouter usa `/#/timer`, `/#/playground`, `/#/stats`, `/#/history` y `/#/settings`, evitando redirecciones del servidor. Los workers se crean mediante URLs de módulos procesadas por Vite. La PWA tiene scope y start URL relativos al repositorio.
+`base: '/twistylab/'` configura los assets para este repositorio de GitHub Pages. Si cambias el nombre del repositorio, actualiza `base` en `vite.config.ts`. HashRouter usa `/#/timer`, `/#/playground`, `/#/stats`, `/#/history` y `/#/settings`, evitando redirecciones del servidor. Los workers se crean mediante URLs de módulos procesadas por Vite. La PWA tiene scope y start URL relativos al repositorio.
 
 Para comprobar localmente el resultado bajo una subcarpeta:
 
@@ -70,7 +71,7 @@ Abre `http://127.0.0.1:4173/twistylab/`. Este servidor es únicamente una herram
 | `src/core/controls` | Chords de teclado y asignaciones por defecto |
 | `src/core/scramble` | Adaptador de scrambles oficiales de cubing.js |
 | `src/engines/cubingjs` | Modelo lógico KPuzzle e historial independiente del renderer |
-| `src/engines/threejs` | Adaptador 3D para Clock y Square-1 |
+| `src/engines/threejs` | Adaptador 3D para Clock, Square-1 y Redi Cube |
 | `src/stores` | Stores separados de puzzle, timer, settings y sesión |
 | `src/workers` | Cálculos de mejores medias fuera del hilo principal |
 | `src/test` | Pruebas de dominio, persistencia, capacidades y controles React |
@@ -93,7 +94,7 @@ Se ordenan los últimos N tiempos efectivos y se descarta el `ceil(N × 0.05)` m
 ## Límites conocidos
 
 - cubing.js expone interacción experimental por clic de cara y órbita; **arrastrar una capa directamente no está implementado**. Usa clics, teclado o el panel de movimientos. La interacción por clic depende del soporte de PuzzleGeometry de cada puzzle.
-- Clock y Square-1 no tienen renderer 3D nativo en la versión fijada. El adaptador Three.js usa el estado KPuzzle y meshes propios. Clock muestra diales y reverso; los pines son visuales, no un mecanismo físico editable. Square-1 representa wedges y cambios de forma, pero sus transiciones de slice son interpolaciones, no una simulación mecánica con colisiones o bloqueo de cortes ilegales.
+- Clock, Square-1 y Redi Cube no tienen renderer 3D nativo en la versión fijada. El adaptador Three.js usa el estado KPuzzle y meshes propios. Redi Cube representa sus 48 stickers orientados sobre una geometría estilizada de sus 20 piezas; el estado de colores es real, pero el giro mecánico de esquinas no se simula. Clock muestra diales y reverso; los pines son visuales, no un mecanismo físico editable. Square-1 representa wedges y cambios de forma, pero sus transiciones de slice son interpolaciones, no una simulación mecánica con colisiones o bloqueo de cortes ilegales.
 - La detección solved usa cubing.js cuando existe y comparación de estado por defecto como alternativa. Clock comprueba todos los diales e ignora la orientación del marco. Algunas orientaciones globales de puzzles no cúbicos pueden necesitar volver a la orientación inicial.
 - Las modalidades OH/blind/FMC/multi-blind se separan por evento y scramble; esta versión registra tiempos. No implementa puntuación de FMC, múltiples cubos ni flujo reglamentario completo de blind/multi-blind.
 - Un algoritmo se valida antes de aplicarlo. Notación de cubing.js no equivale a validación de restricciones físicas de todos los puzzles especiales.

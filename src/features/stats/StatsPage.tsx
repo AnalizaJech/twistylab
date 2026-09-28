@@ -1,3 +1,5 @@
+import { useI18n } from '../../i18n';
+import { Select } from '../../components/Select';
 import { useState } from 'react';
 import type { Solve } from '../../types';
 import { average, bestSingle, effectiveTime, formatTime } from '../../core/statistics';
@@ -6,6 +8,7 @@ import { usePuzzleStore, useSessionStore, useSettingsStore } from '../../stores'
 import { SessionSelector } from '../../components/SessionSelector';
 import { useBestAverages } from '../../hooks/useBestAverages';
 export function StatsSummary({ solves, compact = false }: { solves: Solve[]; compact?: boolean }) {
+  const { t } = useI18n();
   const p = useSettingsStore((s) => s.settings.precision);
   const best = useBestAverages(solves, !compact);
   const data: [string, number | null][] = [
@@ -27,8 +30,8 @@ export function StatsSummary({ solves, compact = false }: { solves: Solve[]; com
   return (
     <div className={`stats-summary ${compact ? 'compact' : ''}`}>
       {data.map(([label, value]) => (
-        <div key={label}>
-          <span>{label}</span>
+        <div key={t(label)}>
+          <span>{t(label)}</span>
           <strong>{label === 'Solves' ? value : formatTime(value, p)}</strong>
         </div>
       ))}
@@ -36,6 +39,7 @@ export function StatsSummary({ solves, compact = false }: { solves: Solve[]; com
   );
 }
 export function StatsCharts({ solves }: { solves: Solve[] }) {
+  const { t } = useI18n();
   const [series, setSeries] = useState('Solve time');
   const values = solves.map((s, i) =>
     series === 'Solve time'
@@ -49,16 +53,13 @@ export function StatsCharts({ solves }: { solves: Solve[] }) {
   return (
     <section className="chart-section">
       <div className="section-heading">
-        <h2>Progress over practice</h2>
-        <select
-          aria-label="Chart series"
+        <h2>{t('Progress over practice')}</h2>
+        <Select
+          label={t('Chart series')}
           value={series}
-          onChange={(e) => setSeries(e.target.value)}
-        >
-          {['Solve time', 'Ao5', 'Ao12', 'Ao100'].map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
+          onValueChange={setSeries}
+          options={['Solve time', 'Ao5', 'Ao12', 'Ao100'].map((s) => ({ value: s, label: s }))}
+        />
       </div>
       {finite.length ? (
         <svg
@@ -89,26 +90,30 @@ export function StatsCharts({ solves }: { solves: Solve[] }) {
                 )}
                 <circle cx={60 + (i / Math.max(1, values.length - 1)) * 820} cy={y(v)} r="3">
                   <title>
-                    Solve {i + 1}: {formatTime(v)}
+                    {t('Solve')}
+                    {i + 1}
+                    {t(':')}
+                    {formatTime(v)}
                   </title>
                 </circle>
               </g>
             ) : null,
           )}
           <text x="55" y="240">
-            FIRST SOLVE
+            {t('FIRST SOLVE')}
           </text>
           <text x="790" y="240">
-            LATEST
+            {t('LATEST')}
           </text>
         </svg>
       ) : (
-        <div className="empty">Complete more solves to see this trend.</div>
+        <div className="empty">{t('Complete more solves to see this trend.')}</div>
       )}
     </section>
   );
 }
 export default function StatsPage() {
+  const { t } = useI18n();
   const solves = useSolves();
   const { settings, update } = useSettingsStore();
   const { puzzleId, eventId } = usePuzzleStore();
@@ -119,27 +124,32 @@ export default function StatsPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="eyebrow">THE BIGGER PICTURE</span>
+          <span className="eyebrow">{t('THE BIGGER PICTURE')}</span>
           <h1>
-            Find your rhythm<span>.</span>
+            {t('Find your rhythm')}
+            <span>.</span>
           </h1>
         </div>
         <SessionSelector />
       </div>
       <div className="section-heading">
         <span>
-          Session PB {formatTime(bestSingle(solves))} · All-time PB {formatTime(bestSingle(all))} ·
-          Current {formatTime(solves.length ? effectiveTime(solves.at(-1)!) : null)}
+          {t('Session PB')}
+          {formatTime(bestSingle(solves))} {t('· All-time PB')}
+          {formatTime(bestSingle(all))} {t('· Current')}
+          {formatTime(solves.length ? effectiveTime(solves.at(-1)!) : null)}
         </span>
         <button onClick={() => void update({ charts: !settings.charts })}>
-          {settings.charts ? 'Hide' : 'Show'} charts
+          {settings.charts ? t('Hide') : t('Show')}
+          {t('charts')}
         </button>
       </div>
       <StatsSummary solves={solves} />
       {settings.charts && <StatsCharts solves={solves} />}
       <p className="stats-explanation">
-        Averages discard the fastest and slowest 5% of solves, rounded up. One DNF can be discarded
-        in Ao5 and Ao12; two make the average DNF. +2 adds two seconds.
+        {t(
+          'Averages discard the fastest and slowest 5% of solves, rounded up. One DNF can be discarded in Ao5 and Ao12; two make the average DNF. +2 adds two seconds.',
+        )}
       </p>
     </>
   );

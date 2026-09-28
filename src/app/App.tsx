@@ -1,3 +1,7 @@
+import { WorkspaceBoundary } from '../components/WorkspaceBoundary';
+import { useI18n } from '../i18n';
+import { Select } from '../components/Select';
+import { ConfirmationProvider } from '../components/Confirmation';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
@@ -8,6 +12,7 @@ import {
   History,
   Settings,
   ArrowUpRight,
+  Languages,
 } from 'lucide-react';
 import { PuzzleSelector } from '../components/PuzzleSelector';
 import { usePuzzleStore, useSettingsStore, useSessionStore } from '../stores';
@@ -18,8 +23,9 @@ const StatsPage = lazy(() => import('../features/stats/StatsPage'));
 const HistoryPage = lazy(() => import('../features/history/HistoryPage'));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
 export function NavigationTabs() {
+  const { t } = useI18n();
   return (
-    <nav className="navigation-tabs" aria-label="Main navigation">
+    <nav className="navigation-tabs" aria-label={t('Main navigation')}>
       {[
         { path: 'timer', icon: Timer, label: 'Timer' },
         { path: 'playground', icon: Orbit, label: 'Playground' },
@@ -27,17 +33,21 @@ export function NavigationTabs() {
       ].map(({ path, icon: Icon, label }) => (
         <NavLink key={path} to={`/${path}`}>
           <Icon size={16} />
-          {label}
+          {t(label)}
         </NavLink>
       ))}
     </nav>
   );
 }
 export function AppShell() {
+  const { t } = useI18n();
   const { puzzleId, eventId, setEvent } = usePuzzleStore();
-  const { settings } = useSettingsStore();
+  const { settings, update } = useSettingsStore();
   const [error, setError] = useState('');
   const location = useLocation();
+  useEffect(() => {
+    document.documentElement.lang = settings.locale;
+  }, [settings.locale]);
   useEffect(() => {
     Promise.all([
       useSessionStore.getState().hydrate(),
@@ -61,67 +71,76 @@ export function AppShell() {
         <a className="brand" href="#/timer">
           <Box size={27} />
           <span>
-            twisty<span>lab</span>
+            {t('twisty')}
+            <span>{t('lab')}</span>
           </span>
-          <small>BETA 1.0</small>
+          <small>{t('BETA 1.0')}</small>
         </a>
         <div className="header-controls">
           <PuzzleSelector />
-          <select
+          <Select
             className="mode-select"
-            aria-label="Competition mode"
+            label={t('Competition mode')}
             value={eventId}
-            onChange={(e) => setEvent(e.target.value)}
-          >
-            {modes
+            onValueChange={setEvent}
+            options={modes
               .filter((m) => m.puzzleId === puzzleId)
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-          </select>
-          <NavLink className="icon-button" to="/settings" aria-label="Settings">
+              .map((m) => ({ value: m.id, label: m.name }))}
+          />
+          <button
+            className="language-button"
+            aria-label={t('Change language')}
+            onClick={() => void update({ locale: settings.locale === 'es' ? 'en' : 'es' })}
+          >
+            <Languages size={16} />
+            <span>{settings.locale.toUpperCase()}</span>
+          </button>
+          <NavLink className="icon-button" to="/settings" aria-label={t('Settings')}>
             <Settings size={19} />
           </NavLink>
         </div>
       </header>
       <div className="navigation-row">
         <NavigationTabs />
-        <nav className="secondary-nav" aria-label="Secondary navigation">
+        <nav className="secondary-nav" aria-label={t('Secondary navigation')}>
           <NavLink to="/history">
             <History size={16} />
-            History
+            {t('History')}
           </NavLink>
           <NavLink to="/settings">
             <Settings size={16} />
-            Settings
+            {t('Settings')}
           </NavLink>
         </nav>
       </div>
       {error && (
         <p className="error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
       <div className="page-content" key={location.pathname}>
-        <Suspense fallback={<div className="empty">Loading workspace…</div>}>
-          <Routes>
-            <Route path="/timer" element={<TimerPage />} />
-            <Route path="/playground" element={<PlaygroundPage />} />
-            <Route path="/stats" element={<StatsPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/timer" replace />} />
-          </Routes>
+        <Suspense fallback={<div className="empty">{t('Loading workspace…')}</div>}>
+          <WorkspaceBoundary>
+            <Routes>
+              <Route path="/timer" element={<TimerPage />} />
+              <Route path="/playground" element={<PlaygroundPage />} />
+              <Route path="/stats" element={<StatsPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/timer" replace />} />
+            </Routes>
+          </WorkspaceBoundary>
         </Suspense>
       </div>
       <div className="app-footer">
         <span>
-          TWISTYLAB <span> / </span> PRACTICE WITH PRECISION
+          {t('TWISTYLAB')}
+          <span>{t('/')}</span>
+          {t('PRACTICE WITH PRECISION')}
         </span>
         <a href="https://js.cubing.net/" target="_blank" rel="noreferrer">
-          Powered by cubing.js <ArrowUpRight size={12} />
+          {t('Powered by cubing.js')}
+          <ArrowUpRight size={12} />
         </a>
       </div>
     </div>
@@ -130,7 +149,9 @@ export function AppShell() {
 export default function App() {
   return (
     <HashRouter>
-      <AppShell />
+      <ConfirmationProvider>
+        <AppShell />
+      </ConfirmationProvider>
     </HashRouter>
   );
 }

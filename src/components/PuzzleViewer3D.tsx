@@ -1,3 +1,5 @@
+import { useI18n } from '../i18n';
+import { Select } from './Select';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TwistyPlayer } from 'cubing/twisty';
 import { Alg } from 'cubing/alg';
@@ -15,8 +17,9 @@ export interface ViewerProps {
 }
 const SpecialPuzzleViewer = lazy(() => import('./SpecialPuzzleViewer'));
 export function PuzzleViewer3D(props: ViewerProps) {
+  const { t } = useI18n();
   return getPuzzle(props.puzzleId).renderer === 'special' ? (
-    <Suspense fallback={<div className="empty">Loading 3D engine...</div>}>
+    <Suspense fallback={<div className="empty">{t('Loading 3D engine…')}</div>}>
       <SpecialPuzzleViewer {...props} />
     </Suspense>
   ) : (
@@ -32,6 +35,7 @@ function CubingViewer({
   large = false,
   animation = false,
 }: ViewerProps) {
+  const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const player = useRef<TwistyPlayer | null>(null);
   const callback = useRef(onNativeMoves);
@@ -136,8 +140,9 @@ function CubingViewer({
   return (
     <div className={`viewer ${large ? 'large' : ''}`}>
       <div className="viewer-label">
-        <span className="status-dot" /> LIVE 3D{' '}
-        <span>{interactive ? 'Orbit · click a face to turn' : 'Drag to orbit'}</span>
+        <span className="status-dot" />
+        {t('LIVE 3D')}{' '}
+        <span>{interactive ? t('Orbit · click a face to turn') : t('Drag to orbit')}</span>
       </div>
       <div
         ref={host}
@@ -146,7 +151,7 @@ function CubingViewer({
         aria-label={`${getPuzzle(puzzleId).name} interactive 3D puzzle`}
         onError={() => setError('3D rendering failed. Check WebGL support.')}
       />
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       <PuzzleToolbar
         camera={camera}
         preset={preset}
@@ -171,28 +176,30 @@ export function PuzzleToolbar({
   zoom: (amount: number) => void;
   fullscreen: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="viewer-toolbar">
-      <select aria-label="Camera preset" value={camera} onChange={(e) => preset(e.target.value)}>
-        {['Isometric', 'Front', 'Top', 'Right'].map((n) => (
-          <option key={n}>{n}</option>
-        ))}
-      </select>
+      <Select
+        label={t('Camera preset')}
+        value={camera}
+        onValueChange={preset}
+        options={['Isometric', 'Front', 'Top', 'Right'].map((n) => ({ value: n, label: n }))}
+      />
       <div>
-        <button className="icon-button" aria-label="Zoom in" onClick={() => zoom(-0.75)}>
+        <button className="icon-button" aria-label={t('Zoom in')} onClick={() => zoom(-0.75)}>
           <Plus size={15} />
         </button>
-        <button className="icon-button" aria-label="Zoom out" onClick={() => zoom(0.75)}>
+        <button className="icon-button" aria-label={t('Zoom out')} onClick={() => zoom(0.75)}>
           <Minus size={15} />
         </button>
         <button
           className="icon-button"
-          aria-label="Reset camera"
+          aria-label={t('Reset camera')}
           onClick={() => preset('Isometric')}
         >
           <RotateCcw size={15} />
         </button>
-        <button className="icon-button" aria-label="Fullscreen puzzle" onClick={fullscreen}>
+        <button className="icon-button" aria-label={t('Fullscreen puzzle')} onClick={fullscreen}>
           <Maximize size={15} />
         </button>
       </div>
@@ -200,10 +207,12 @@ export function PuzzleToolbar({
   );
 }
 export function ScramblePlayer({ player }: { player: () => TwistyPlayer | null }) {
+  const { t } = useI18n();
+  const [tempo, setTempo] = useState('1');
   return (
     <div className="playback">
       <button
-        aria-label="Previous move"
+        aria-label={t('Previous move')}
         onClick={() =>
           player()?.controller.animationController.play({
             direction: -1,
@@ -219,14 +228,14 @@ export function ScramblePlayer({ player }: { player: () => TwistyPlayer | null }
       >
         <SkipBack size={16} />
       </button>
-      <button aria-label="Play scramble" onClick={() => player()?.play()}>
+      <button aria-label={t('Play scramble')} onClick={() => player()?.play()}>
         <Play size={16} />
       </button>
-      <button aria-label="Pause scramble" onClick={() => player()?.pause()}>
+      <button aria-label={t('Pause scramble')} onClick={() => player()?.pause()}>
         <Pause size={16} />
       </button>
       <button
-        aria-label="Next move"
+        aria-label={t('Next move')}
         onClick={() =>
           player()?.controller.animationController.play({
             direction: 1,
@@ -242,22 +251,24 @@ export function ScramblePlayer({ player }: { player: () => TwistyPlayer | null }
       >
         <SkipForward size={16} />
       </button>
-      <button aria-label="Reset playback" onClick={() => player()?.jumpToStart()}>
+      <button aria-label={t('Reset playback')} onClick={() => player()?.jumpToStart()}>
         <RotateCcw size={16} />
       </button>
-      <select
-        aria-label="Playback speed"
-        onChange={(e) => {
+      <Select
+        label={t('Playback speed')}
+        value={tempo}
+        onValueChange={(v) => {
+          setTempo(v);
           const p = player();
-          if (p) p.tempoScale = Number(e.target.value);
+          if (p) p.tempoScale = Number(v);
         }}
-        defaultValue="1"
-      >
-        <option value="0.5">0.5×</option>
-        <option value="1">1×</option>
-        <option value="2">2×</option>
-        <option value="100">Instant</option>
-      </select>
+        options={[
+          { value: '0.5', label: '0.5×' },
+          { value: '1', label: '1×' },
+          { value: '2', label: '2×' },
+          { value: '100', label: 'Instant' },
+        ]}
+      />
     </div>
   );
 }

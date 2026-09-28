@@ -13,6 +13,8 @@
     "verify:puzzles": "node scripts/verify-puzzles.mjs"
   },
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "^1.1.23",
+    "@radix-ui/react-select": "^2.3.7",
     "cubing": "^0.63.3",
     "dexie": "^4.0.0",
     "lucide-react": "^0.468.0",

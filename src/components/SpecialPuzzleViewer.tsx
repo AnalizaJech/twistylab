@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, RotateCcw } from 'lucide-react';
 import { Alg, Move } from 'cubing/alg';
@@ -11,6 +12,7 @@ export default function SpecialPuzzleViewer({
   large,
   animation,
 }: ViewerProps) {
+  const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const renderer = useRef<ThreeJsPuzzleRenderer | null>(null);
   const [camera, setCamera] = useState('Isometric');
@@ -75,7 +77,8 @@ export default function SpecialPuzzleViewer({
     <div className={`viewer ${large ? 'large' : ''}`}>
       <div className="viewer-label">
         <span className="status-dot" />
-        LIVE 3D<span>Drag to orbit · use move controls</span>
+        {t('LIVE 3D')}
+        <span>{t('Drag to orbit · use move controls')}</span>
       </div>
       <div ref={host} className="player-host" role="img" aria-label={`${puzzleId} 3D puzzle`} />
       {error && (
@@ -94,11 +97,14 @@ export default function SpecialPuzzleViewer({
       />
       {animation && (
         <div className="playback">
-          <button aria-label="Previous move" onClick={() => setStep((s) => Math.max(0, s - 1))}>
+          <button
+            aria-label={t('Previous move')}
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+          >
             <SkipBack size={16} />
           </button>
           <button
-            aria-label="Play scramble"
+            aria-label={t('Play scramble')}
             onClick={() => {
               if (step === moves.current.length) setStep(0);
               setPlaying(true);
@@ -106,17 +112,17 @@ export default function SpecialPuzzleViewer({
           >
             <Play size={16} />
           </button>
-          <button aria-label="Pause scramble" onClick={() => setPlaying(false)}>
+          <button aria-label={t('Pause scramble')} onClick={() => setPlaying(false)}>
             <Pause size={16} />
           </button>
           <button
-            aria-label="Next move"
+            aria-label={t('Next move')}
             onClick={() => setStep((s) => Math.min(moves.current.length, s + 1))}
           >
             <SkipForward size={16} />
           </button>
           <button
-            aria-label="Reset playback"
+            aria-label={t('Reset playback')}
             onClick={() => {
               setStep(0);
               setPlaying(false);
@@ -125,7 +131,9 @@ export default function SpecialPuzzleViewer({
             <RotateCcw size={16} />
           </button>
           <span>
-            {step}/{moves.current.length}
+            {step}
+            {t('/')}
+            {moves.current.length}
           </span>
         </div>
       )}

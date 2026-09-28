@@ -18,6 +18,8 @@ export interface Session {
   createdAt: number;
 }
 export interface Settings {
+  locale: 'es' | 'en';
+  controlsVersion?: number;
   theme: 'dark' | 'light' | 'system';
   inspection: boolean;
   precision: 2 | 3;

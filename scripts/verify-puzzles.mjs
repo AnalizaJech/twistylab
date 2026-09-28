@@ -14,6 +14,10 @@ for (const [id, event] of [
   ['square1', 'sq1'],
   ['clock', 'clock'],
   ['fto', 'fto'],
+  ['kilominx', 'kilominx'],
+  ['redi_cube', 'redi_cube'],
+  ['master_tetraminx', 'master_tetraminx'],
+  ['baby_fto', 'baby_fto'],
 ]) {
   try {
     const k = await puzzles[id].kpuzzle();

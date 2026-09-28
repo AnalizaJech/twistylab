@@ -66,7 +66,8 @@ export function validateBackup(value: unknown): Backup {
         s.value.holdMs >= 100 &&
         s.value.holdMs <= 3000 &&
         ['slow', 'normal', 'fast', 'instant'].includes(String(s.value.speed)) &&
-        typeof s.value.charts === 'boolean',
+        typeof s.value.charts === 'boolean' &&
+        (s.value.locale === undefined || ['es', 'en'].includes(String(s.value.locale))),
     )
   )
     throw Error('Invalid settings.');
